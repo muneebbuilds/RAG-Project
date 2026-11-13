@@ -1,0 +1,15 @@
+# Virtual environment
+.venv/
+
+# Generated database files
+Database/chroma_db/
+Database/chunk_metadata.json
+Database/embeddings.txt
+
+# PDF (if copyrighted)
+Data/The-Death-of-Ivan.pdf
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo

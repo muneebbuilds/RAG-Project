@@ -1,0 +1,109 @@
+ 
+ INGESTION.PY Pipeline:
+
+                 ┌──────────────────────┐
+                 │     PDF Book         │
+                 │ The Death of Ivan    │                                       PDF
+                 │       Ilyich         │                                        ↓           
+                 └──────────┬───────────┘                                    Load pages
+                            │                                                    ↓ 
+                            ▼                                             Split into chunks
+                 ┌──────────────────────┐                                        ↓ 
+                 │     PyPDFLoader      |                              Add page/chunk metadata
+                 │   Load PDF pages     │                                        ↓ 
+                 └──────────┬───────────┘                              Convert chunks → vectors
+                            │                                                    ↓ 
+                            ▼                                      Store vectors + text + metadata
+                 ┌──────────────────────┐                                        ↓ 
+                 │   Text Splitter      │                                     ChromaDB
+                 │                      │
+                 │ Chunk size: 1000     │
+                 │ Overlap: 200         │
+                 └──────────┬───────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │      Metadata        │
+                 │                      │
+                 │ chunk_id             │
+                 │ page                 │
+                 │ source               │
+                 │ collection           │
+                 └──────────┬───────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │ HuggingFace          │
+                 │ Embeddings           │
+                 │                      │
+                 │ e5-small-v2          │
+                 └──────────┬───────────┘
+                            │
+                       Vectors
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │      ChromaDB        │
+                 │                      │
+                 │ Text + Embeddings    │
+                 │ + Metadata           │
+                 └──────────┬───────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │ chunk_metadata.json  │
+                 │                      │
+                 │ Chunk information    │
+                 └──────────────────────┘
+
+
+
+Question/ Answer Pipeline: 
+                
+                 ┌──────────────────────┐
+                 │    User Question     │                      
+                 └──────────┬───────────┘                               User asks a question
+                            │                                                    ↓
+                            ▼                                       Convert question into a vector
+                 ┌──────────────────────┐                                        ↓
+                 │ HuggingFace          │                                  Search ChromaDB
+                 │ Embedding Model      │                                        ↓
+                 │                      │                            Find the most relevant chunks
+                 │ e5-small-v2          │                                        ↓
+                 └──────────┬───────────┘                            Put those chunks into a prompt
+                            │                                                    ↓
+                     Question Vector                                Send prompt + question to Ollama
+                            │                                                    ↓
+                            ▼                                            LLM generates answer
+                 ┌──────────────────────┐                                        ↓
+                 │      ChromaDB        │                             Show answer + source pages
+                 │                      │
+                 │ Similarity Search    │
+                 └──────────┬───────────┘
+                            │
+                     Top-K chunks
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │      Context         │
+                 └──────────┬───────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │       Prompt         │
+                 │                      │
+                 │ Question + Context   │
+                 └──────────┬───────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │       Ollama         │
+                 │    llama3.2:1b       │
+                 └──────────┬───────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │       Answer         │
+                 │         +            │
+                 │    Source pages      │
+                 └──────────────────────┘

@@ -1,0 +1,19 @@
+{
+    "document_path": "Data/The-Death-of-Ivan.pdf",
+    "database_path": "Database/chroma_db",
+    "metadata_file": "Database/chunk_metadata.json",
+    "embeddings_file": "Database/embeddings.txt",
+
+    "collection_name": "book_rag",
+
+    "embedding_model": "intfloat/e5-small-v2",
+
+    "chunk_method": "section",
+    "chunk_size": 1000,
+    "chunk_overlap": 200,
+
+    "top_k": 5,
+
+    "llm_model": "llama3.2:latest",
+    "temperature": 0
+}
