@@ -9,6 +9,7 @@ Database/embeddings.txt
 # PDF (if copyrighted)
 Data/The-Death-of-Ivan.pdf
 
+config.json
 # Python cache
 __pycache__/
 *.pyc

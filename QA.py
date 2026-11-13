@@ -1,6 +1,7 @@
 import json
+import requests
+
 from langchain_chroma import Chroma
-from langchain_ollama import ChatOllama
 from langchain_huggingface import HuggingFaceEmbeddings
 
 
@@ -15,8 +16,12 @@ DATABASE_PATH = config["database_path"]
 COLLECTION_NAME = config["collection_name"]
 EMBEDDING_MODEL = config["embedding_model"]
 TOP_K = config["top_k"]
-LLM_MODEL = config["llm_model"]
+
+LLM_MODEL = config["model"]
 TEMPERATURE = config["temperature"]
+
+API_KEY = config["api_key"]
+BASE_URL = config["base_url"].rstrip("/")
 
 
 # STARTUP
@@ -26,6 +31,7 @@ print("PDF RAG: QUESTION ANSWERING")
 print("=" * 60)
 
 print(f"Collection: {COLLECTION_NAME}")
+print(f"LLM Model: {LLM_MODEL}")
 
 
 # LOAD EMBEDDINGS
@@ -58,33 +64,6 @@ print("Total stored records:", vectorstore._collection.count())
 
 retriever = vectorstore.as_retriever(
     search_kwargs={"k": TOP_K}
-)
-# RETRIEVAL TEST
-
-#test_questions = []
-
-# for question in test_questions:
-
-#     print("\n" + "=" * 60)
-#     print("QUESTION:", question)
-
-#     results = retriever.invoke("query: " + question)
-
-#     for i, doc in enumerate(results):
-
-#         print(f"\nRESULT {i+1}")
-#         print("PAGE:", doc.metadata.get("page"))
-#         print("CHUNK:", doc.metadata.get("chunk_id"))
-#         print("TEXT:")
-#         print(doc.page_content[:700])
-
-# LOAD LLM
-
-print("\nLoading LLM...")
-
-llm = ChatOllama(
-    model=LLM_MODEL,
-    temperature=TEMPERATURE
 )
 
 
@@ -135,9 +114,28 @@ Question:
 Answer:
 """
 
-    response = llm.invoke(prompt)
 
-    return response.content, documents
+    # SEND REQUEST TO KAGGLE GPU
+
+    response = requests.post(
+        f"{BASE_URL}/api/generate",
+        headers={
+            "Authorization": f"Bearer {API_KEY}"
+        },
+        json={
+            "model": LLM_MODEL,
+            "prompt": prompt,
+            "temperature": TEMPERATURE,
+            "stream": False
+        },
+        timeout=180
+    )
+
+    response.raise_for_status()
+
+    answer = response.json()["response"]
+
+    return answer, documents
 
 
 # QUESTION ANSWERING LOOP
@@ -156,20 +154,38 @@ while True:
     if not question:
         continue
 
-    answer, source_documents = ask_question(question)
+    try:
 
-    print("\nAnswer:")
-    print("-" * 60)
-    print(answer)
+        answer, source_documents = ask_question(question)
 
-    print("\nRetrieved Sources:")
-    print("-" * 60)
+        print("\nAnswer:")
+        print("-" * 60)
+        print(answer)
 
-    for document in source_documents:
+        print("\nRetrieved Sources:")
+        print("-" * 60)
 
-        page = document.metadata.get("page")
-        chunk_id = document.metadata.get("chunk_id")
+        for document in source_documents:
 
-        print(f"Page: {page} | Chunk ID: {chunk_id}")
+            page = document.metadata.get("page")
+            chunk_id = document.metadata.get("chunk_id")
 
-    print("-" * 60)
+            print(f"Page: {page} | Chunk ID: {chunk_id}")
+
+        print("-" * 60)
+
+    except requests.exceptions.Timeout:
+        print("\nError: Kaggle GPU request timed out.")
+
+    except requests.exceptions.ConnectionError:
+        print("\nError: Could not connect to the Kaggle API.")
+
+    except requests.exceptions.HTTPError as error:
+        print(f"\nAPI Error: {error}")
+        print("Response:", error.response.text)
+
+    except (KeyError, ValueError) as error:
+        print(f"\nInvalid API response: {error}")
+
+    except Exception as error:
+        print(f"\nUnexpected error: {error}")
